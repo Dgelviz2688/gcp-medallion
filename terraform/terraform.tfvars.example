@@ -1,0 +1,4 @@
+project_id  = "example-project-id"
+region      = "example-region"
+bq_location = "example-bq-location"
+github_repository = "example-user/example-repo"
