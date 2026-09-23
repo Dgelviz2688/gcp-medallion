@@ -12,3 +12,8 @@ output "cloud_function_url" {
   value       = google_cloudfunctions2_function.ingest_api_function.service_config[0].uri
   description = "URL HTTP pública para disparar la Cloud Function de ingesta"
 }
+
+output "firestore_to_bq_function_url" {
+  value       = google_cloudfunctions2_function.firestore_to_bq_func.service_config[0].uri
+  description = "URL HTTP pública para disparar la Cloud Function de ingesta desde Firestore"
+}
