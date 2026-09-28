@@ -1,0 +1,89 @@
+# 1. Habilitar APIs de Gobernanza de Datos
+resource "google_project_service" "data_governance_services" {
+  for_each = toset([
+    "bigquerydatapolicy.googleapis.com",
+    "datacatalog.googleapis.com"
+  ])
+  project            = var.project_id
+  service            = each.key
+  disable_on_destroy = false
+}
+
+# 2. Crear Taxonomía en Data Catalog (Debe estar en la misma región que los datos)
+resource "google_data_catalog_taxonomy" "pii_taxonomy" {
+  display_name           = "PII_Taxonomy"
+  description            = "Clasificación de datos personales altamente sensibles (PII)"
+  region                 = var.region
+  activated_policy_types = ["FINE_GRAINED_ACCESS_CONTROL"]
+
+  depends_on = [google_project_service.data_governance_services]
+}
+
+# 3. Crear el Tag de Política para la columna de Email
+resource "google_data_catalog_policy_tag" "email_policy_tag" {
+  taxonomy     = google_data_catalog_taxonomy.pii_taxonomy.id
+  display_name = "Email_PII_Tag"
+  description  = "Identificador de seguridad para columnas de correo electrónico"
+}
+
+# 4. Crear la regla de Enmascaramiento Dinámico (EMAIL_MASK)
+resource "google_bigquery_datapolicy_data_policy" "email_mask_policy" {
+  location         = var.region
+  data_policy_id   = "email_mask_policy"
+  policy_tag       = google_data_catalog_policy_tag.email_policy_tag.name
+  data_policy_type = "DATA_MASKING_POLICY"
+
+  data_masking_policy {
+    predefined_expression = "EMAIL_MASK" # Oculta parcialmente el correo: j***@example.com
+  }
+}
+
+# 5. Crear la Tabla Silver de Clientes controlada formalmente por Terraform
+# NOTA: Al gestionar el esquema en Terraform, asociamos la Policy Tag a la columna "email"
+resource "google_bigquery_table" "silver_customers" {
+  dataset_id          = google_bigquery_dataset.silver_dataset.dataset_id
+  table_id            = "customers"
+  deletion_protection = false
+
+  schema = jsonencode([
+    {
+      name        = "customer_id"
+      type        = "STRING"
+      mode        = "REQUIRED"
+      description = "ID único del cliente"
+    },
+    {
+      name        = "name"
+      type        = "STRING"
+      mode        = "NULLABLE"
+      description = "Nombre completo limpio"
+    },
+    {
+      name        = "email"
+      type        = "STRING"
+      mode        = "NULLABLE"
+      description = "Correo electrónico enmascarado dinámicamente"
+      policyTags = {
+        names = [google_data_catalog_policy_tag.email_policy_tag.id]
+      }
+    },
+    {
+      name        = "is_active"
+      type        = "BOOLEAN"
+      mode        = "NULLABLE"
+      description = "Estado de actividad"
+    },
+    {
+      name        = "signup_date"
+      type        = "TIMESTAMP"
+      mode        = "NULLABLE"
+      description = "Fecha de registro"
+    },
+    {
+      name        = "ingestion_timestamp"
+      type        = "TIMESTAMP"
+      mode        = "REQUIRED"
+      description = "Fecha de procesamiento Silver"
+    }
+  ])
+}
