@@ -18,5 +18,6 @@ variable "bq_location" {
 
 variable "github_repository" {
   type        = string
+  default     = "Dgelviz2688/gcp-medallion"
   description = "Repositorio de GitHub (usuario/repo) autorizado a autenticarse en GCP vía Workload Identity Federation."
 }
