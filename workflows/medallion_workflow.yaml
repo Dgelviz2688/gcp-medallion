@@ -1,0 +1,31 @@
+main:
+  steps:
+    # Step 1: Disparar la ingesta HTTP de la API (Capa Bronze)
+    - trigger_api_ingestion:
+        call: http.get
+        args:
+          url: ${api_cf_url}
+        result: api_response
+
+    # Step 2: Registrar en los logs de GCP la respuesta de la función de ingesta
+    - log_api_response:
+        call: sys.log
+        args:
+          text: '$${"Ingesta API completada. Respuesta: " + json.encode_to_string(api_response.body)}'
+
+    # Step 3: Invocar el Procedimiento Almacenado de BigQuery
+    # Nota: El conector nativo espera automáticamente a que el Job de BigQuery termine con éxito
+    - run_bigquery_medallion_pipeline:
+        call: googleapis.bigquery.v2.jobs.insert
+        args:
+          projectId: ${project_id}
+          body:
+            configuration:
+              query:
+                query: "CALL `gold.sp_run_medallion_pipeline`();"
+                useLegacySql: false
+        result: bq_job
+
+    # Step 4: Finalizar el pipeline con éxito
+    - pipeline_completed:
+        return: "Pipeline Medallion orquestado y ejecutado exitosamente de extremo a extremo."

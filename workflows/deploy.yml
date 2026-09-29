@@ -1,0 +1,62 @@
+name: "Pipeline CI/CD Medallion"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write  # Requerido para la autenticación basada en OIDC (WIF)
+
+jobs:
+  ci_cd_pipeline:
+    name: "Validación y Despliegue Automatizado"
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Descargar el código fuente
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Autenticación federada en GCP mediante WIF sin llaves privadas
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "${{ secrets.GCP_WIF_PROVIDER }}"
+          service_account: "${{ secrets.GCP_SA_EMAIL }}"
+
+      # Step 3: Instalar y configurar el SDK de GCP
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Step 4: Instalar y configurar Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      # Step 5: Validación de Terraform (Se ejecuta en PRs y Pushes)
+      - name: Terraform Check and Validate
+        run: |
+          cd terraform
+          terraform init
+          terraform fmt -check
+          terraform validate
+
+      # Step 6: Aplicar Cambios de Infraestructura (Solo tras fusionar a la rama "main")
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cd terraform
+          terraform apply -auto-approve
+
+      # Step 7: Compilar/Actualizar Procedimiento Almacenado en BigQuery (Solo en "main")
+      - name: Deploy BigQuery Stored Procedures
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          bq query --use_legacy_sql=false < sql/gold_sp_run_medallion_pipeline.sql
