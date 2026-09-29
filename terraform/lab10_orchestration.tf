@@ -56,6 +56,6 @@ resource "google_workflows_workflow" "medallion_orchestrator" {
     google_project_iam_member.workflows_bq_job_user,
     google_project_iam_member.workflows_bq_data_editor,
     google_cloud_run_service_iam_member.workflows_cf_invoker,
-    google_project_iam_member.workflows_log_writer 
+    google_project_iam_member.workflows_log_writer
   ]
 }

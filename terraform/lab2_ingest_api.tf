@@ -57,12 +57,12 @@ resource "google_cloudfunctions2_function" "ingest_api_function" {
     max_instance_count = 1
     available_memory   = "512Mi"
     timeout_seconds    = 60
-    
+
     # Inyectamos el nombre del bucket de la capa Bronze como variable de entorno
     environment_variables = {
       BUCKET_NAME = google_storage_bucket.bronze_raw_bucket.name
     }
-    
+
     # Asignamos la Service Account que creamos
     service_account_email = google_service_account.cf_service_account.email
   }

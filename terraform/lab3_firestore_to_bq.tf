@@ -96,12 +96,12 @@ resource "google_cloudfunctions2_function" "firestore_to_bq_func" {
     max_instance_count = 1
     available_memory   = "512Mi"
     timeout_seconds    = 60
-    
+
     environment_variables = {
       DATASET_ID = google_bigquery_dataset.bronze_dataset.dataset_id
       TABLE_ID   = google_bigquery_table.firestore_customers_raw.table_id
     }
-    
+
     service_account_email = google_service_account.cf_firestore_sa.email
   }
 
@@ -115,7 +115,7 @@ resource "google_cloudfunctions2_function" "firestore_to_bq_func" {
       attribute = "database"
       value     = "(default)" # Base de datos Firestore configurada en el Lab 1
     }
-    
+
     # Patrón de coincidencia para escuchar cambios sobre cualquier ID de cliente en la colección "customers"
     event_filters {
       attribute = "document"

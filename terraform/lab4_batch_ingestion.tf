@@ -115,12 +115,12 @@ resource "google_cloudfunctions2_function" "batch_gcs_to_bq_func" {
     max_instance_count = 1
     available_memory   = "512Mi"
     timeout_seconds    = 120 # Timeout extendido para cargas por lote más pesadas
-    
+
     environment_variables = {
       DATASET_ID = google_bigquery_dataset.bronze_dataset.dataset_id
       TABLE_ID   = google_bigquery_table.orders_raw.table_id
     }
-    
+
     service_account_email = google_service_account.cf_batch_sa.email
   }
 

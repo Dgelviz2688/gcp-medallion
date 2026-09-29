@@ -46,7 +46,7 @@ resource "google_project_iam_member" "github_editor_binding" {
 resource "google_service_account_iam_member" "github_sa_impersonation" {
   service_account_id = google_service_account.github_actions_sa.name
   role               = "roles/iam.workloadIdentityUser"
-  
+
   # Forzamos el uso del número de proyecto en el principalSet
   member = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
 }
