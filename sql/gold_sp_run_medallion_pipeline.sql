@@ -1,41 +1,35 @@
 CREATE OR REPLACE PROCEDURE `gold.sp_run_medallion_pipeline`()
 BEGIN
   -- ==========================================
-  -- 1. FASE DE CALIDAD Y AUDITORÍA (CUARENTENA)
+  -- 1. CLIENTES: CALIDAD (CUARENTENA) + SILVER
   -- ==========================================
-  
+
   -- Auditoría de Clientes Corruptos
+  -- NOT EXISTS evita re-insertar el mismo rechazo en cada ejecución (idempotencia)
   INSERT INTO `quarantine.invalid_records` (table_name, record_key, error_reason, rejected_payload, rejected_at)
-  SELECT
+  SELECT DISTINCT -- DISTINCT: eventos idénticos en Bronze generan un solo rechazo
     'customers' AS table_name,
-    document_id AS record_key,
+    b.document_id AS record_key,
     CASE
-      WHEN TRIM(JSON_VALUE(data.fields.name.stringValue)) IS NULL OR TRIM(JSON_VALUE(data.fields.name.stringValue)) = "" THEN "El nombre está vacío o es nulo"
-      WHEN LOWER(TRIM(JSON_VALUE(data.fields.email.stringValue))) NOT LIKE '%@%.%' THEN "Formato de correo electrónico inválido"
-      WHEN TIMESTAMP(JSON_VALUE(data.fields.signup_date.timestampValue)) > CURRENT_TIMESTAMP() THEN "Fecha de registro en el futuro"
+      WHEN TRIM(JSON_VALUE(b.data.fields.name.stringValue)) IS NULL OR TRIM(JSON_VALUE(b.data.fields.name.stringValue)) = "" THEN "El nombre está vacío o es nulo"
+      WHEN LOWER(TRIM(JSON_VALUE(b.data.fields.email.stringValue))) NOT LIKE '%@%.%' THEN "Formato de correo electrónico inválido"
+      WHEN TIMESTAMP(JSON_VALUE(b.data.fields.signup_date.timestampValue)) > CURRENT_TIMESTAMP() THEN "Fecha de registro en el futuro"
     END AS error_reason,
-    TO_JSON_STRING(data) AS rejected_payload,
+    TO_JSON_STRING(b.data) AS rejected_payload,
     CURRENT_TIMESTAMP() AS rejected_at
-  FROM `bronze.firestore_customers_raw`
+  FROM `bronze.firestore_customers_raw` b
   WHERE
-    (TRIM(JSON_VALUE(data.fields.name.stringValue)) IS NULL OR TRIM(JSON_VALUE(data.fields.name.stringValue)) = "") OR
-    (LOWER(TRIM(JSON_VALUE(data.fields.email.stringValue))) NOT LIKE '%@%.%') OR
-    (TIMESTAMP(JSON_VALUE(data.fields.signup_date.timestampValue)) > CURRENT_TIMESTAMP());
-
-  -- Auditoría de Órdenes Huérfanas
-  INSERT INTO `quarantine.invalid_records` (table_name, record_key, error_reason, rejected_payload, rejected_at)
-  SELECT
-    'orders' AS table_name,
-    id AS record_key,
-    "Violación de Integridad Referencial: El customer_id no existe" AS error_reason,
-    TO_JSON_STRING(STRUCT(customer_id, product_id, amount, order_date)) AS rejected_payload,
-    CURRENT_TIMESTAMP() AS rejected_at
-  FROM `bronze.orders_raw`
-  WHERE customer_id NOT IN (SELECT customer_id FROM `silver.customers`);
-
-  -- ==========================================
-  -- 2. FASE DE PROCESAMIENTO INCREMENTAL (SILVER)
-  -- ==========================================
+    (
+      (TRIM(JSON_VALUE(b.data.fields.name.stringValue)) IS NULL OR TRIM(JSON_VALUE(b.data.fields.name.stringValue)) = "") OR
+      (LOWER(TRIM(JSON_VALUE(b.data.fields.email.stringValue))) NOT LIKE '%@%.%') OR
+      (TIMESTAMP(JSON_VALUE(b.data.fields.signup_date.timestampValue)) > CURRENT_TIMESTAMP())
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM `quarantine.invalid_records` q
+      WHERE q.table_name = 'customers'
+        AND q.record_key = b.document_id
+        AND q.rejected_payload = TO_JSON_STRING(b.data)
+    );
 
   -- Merge Incremental Clientes (SCD Tipo 1) [4]
   MERGE `silver.customers` T
@@ -68,6 +62,27 @@ BEGIN
   WHEN NOT MATCHED THEN
     INSERT (customer_id, name, email, is_active, signup_date, ingestion_timestamp)
     VALUES (S.customer_id, S.name, S.email, S.is_active, S.signup_date, S.ingestion_timestamp);
+
+  -- ==========================================
+  -- 2. ÓRDENES: CALIDAD (CUARENTENA) + SILVER
+  -- ==========================================
+  -- Se ejecuta después del MERGE de clientes para validar contra los clientes recién cargados
+
+  -- Auditoría de Órdenes Huérfanas
+  INSERT INTO `quarantine.invalid_records` (table_name, record_key, error_reason, rejected_payload, rejected_at)
+  SELECT DISTINCT -- DISTINCT: si el mismo CSV se cargó dos veces, se registra un solo rechazo
+    'orders' AS table_name,
+    o.id AS record_key,
+    "Violación de Integridad Referencial: El customer_id no existe" AS error_reason,
+    TO_JSON_STRING(STRUCT(o.customer_id, o.product_id, o.amount, o.order_date)) AS rejected_payload,
+    CURRENT_TIMESTAMP() AS rejected_at
+  FROM `bronze.orders_raw` o
+  WHERE o.customer_id NOT IN (SELECT customer_id FROM `silver.customers`)
+    AND NOT EXISTS (
+      SELECT 1 FROM `quarantine.invalid_records` q
+      WHERE q.table_name = 'orders'
+        AND q.record_key = o.id
+    );
 
   -- Merge Incremental Órdenes (De-duplicación)
   MERGE `silver.orders` T

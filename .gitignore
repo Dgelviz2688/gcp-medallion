@@ -4,3 +4,10 @@
 *.tfstate.backup
 .terraform.lock.hcl
 *.tfvars
+
+# Python
+__pycache__/
+*.pyc
+
+# Artefactos generados por Terraform (archive_file los recrea en cada plan/apply)
+terraform/files/

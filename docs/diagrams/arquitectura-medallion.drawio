@@ -1,0 +1,140 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="medallion" name="Arquitectura Medallion GCP">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Título -->
+        <mxCell id="title" value="&lt;b&gt;GCP Medallion Data Platform&lt;/b&gt;&lt;br&gt;Terraform · Cloud Functions Gen2 · Eventarc · BigQuery · Cloud Workflows · GitHub Actions (WIF)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="450" y="10" width="1000" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Terraform / GCP boundary -->
+        <mxCell id="gcp" value="Proyecto Google Cloud · aprovisionado 100% con Terraform (44 recursos)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#7B42BC;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;fontStyle=1;fontColor=#7B42BC;" vertex="1" parent="1">
+          <mxGeometry x="240" y="80" width="1600" height="620" as="geometry" />
+        </mxCell>
+
+        <!-- Fuentes -->
+        <mxCell id="srcLane" value="Fuentes" style="swimlane;html=1;startSize=26;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="20" y="120" width="190" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="API REST&lt;br&gt;jsonplaceholder /users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="srcLane">
+          <mxGeometry x="20" y="50" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fs" value="Firestore&lt;br&gt;colección customers" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="srcLane">
+          <mxGeometry x="20" y="190" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="csv" value="Archivos CSV&lt;br&gt;órdenes" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="srcLane">
+          <mxGeometry x="20" y="360" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Ingesta -->
+        <mxCell id="ingLane" value="Ingesta · Cloud Functions Gen2 (Python 3.11)" style="swimlane;html=1;startSize=26;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="270" y="120" width="230" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="cf1" value="ingest-api-to-bronze&lt;br&gt;&lt;i&gt;HTTP&lt;/i&gt;&lt;br&gt;SA: sa-ingest-api" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="ingLane">
+          <mxGeometry x="25" y="45" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cf2" value="firestore-to-bq&lt;br&gt;&lt;i&gt;Eventarc: document.written&lt;/i&gt;&lt;br&gt;SA: sa-firestore-to-bq" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="ingLane">
+          <mxGeometry x="25" y="195" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cf3" value="batch-gcs-to-bq&lt;br&gt;&lt;i&gt;Eventarc: object.finalized&lt;/i&gt;&lt;br&gt;SA: sa-batch-ingest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="ingLane">
+          <mxGeometry x="25" y="360" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Bronze -->
+        <mxCell id="brzLane" value="Bronze · datos crudos" style="swimlane;html=1;startSize=26;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="560" y="120" width="250" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="gcs" value="GCS bronze-raw&lt;br&gt;(versionado)&lt;br&gt;users/ · batch_uploads/orders/" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="brzLane">
+          <mxGeometry x="25" y="40" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" value="bronze.firestore_customers_raw&lt;br&gt;&lt;i&gt;JSON · append-only&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="brzLane">
+          <mxGeometry x="25" y="190" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" value="bronze.orders_raw&lt;br&gt;&lt;i&gt;esquema estricto&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="brzLane">
+          <mxGeometry x="25" y="355" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Cuarentena -->
+        <mxCell id="q" value="quarantine.invalid_records&lt;br&gt;&lt;i&gt;reglas de calidad + integridad referencial&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="880" y="620" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Silver -->
+        <mxCell id="slvLane" value="Silver · limpio y deduplicado" style="swimlane;html=1;startSize=26;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="880" y="120" width="240" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" value="silver.customers&lt;br&gt;&lt;i&gt;MERGE · SCD Tipo 1&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="slvLane">
+          <mxGeometry x="20" y="185" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" value="silver.orders&lt;br&gt;&lt;i&gt;MERGE · deduplicación&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="slvLane">
+          <mxGeometry x="20" y="355" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Gold -->
+        <mxCell id="gldLane" value="Gold · esquema estrella" style="swimlane;html=1;startSize=26;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="120" width="300" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="g1" value="gold.dim_customers&lt;br&gt;&lt;i&gt;clientes activos&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="gldLane">
+          <mxGeometry x="20" y="190" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="g2" value="gold.fact_sales&lt;br&gt;&lt;i&gt;PARTITION order_date&lt;br&gt;CLUSTER product_id, customer_key&lt;/i&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="gldLane">
+          <mxGeometry x="20" y="345" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="v1" value="vw_sales_performance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="gldLane">
+          <mxGeometry x="160" y="200" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="v2" value="vw_platform_health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="gldLane">
+          <mxGeometry x="160" y="50" width="130" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- BI -->
+        <mxCell id="bi" value="&lt;b&gt;Looker Studio&lt;/b&gt;&lt;br&gt;Ventas · Salud de la plataforma" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="250" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Orquestación -->
+        <mxCell id="wf" value="&lt;b&gt;Cloud Workflows&lt;/b&gt; · medallion-orchestrator&lt;br&gt;1) http.get CF API → 2) sys.log → 3) CALL gold.sp_run_medallion_pipeline()&lt;br&gt;SA: sa-medallion-orchestrator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="620" width="560" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- CI/CD -->
+        <mxCell id="gha" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br&gt;fmt · validate · apply · deploy SP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1f2328;fontColor=#ffffff;strokeColor=#1f2328;" vertex="1" parent="1">
+          <mxGeometry x="240" y="760" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="wif" value="Workload Identity Federation&lt;br&gt;github-pool / github-provider (OIDC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="760" width="250" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="tf" value="&lt;b&gt;Terraform&lt;/b&gt;&lt;br&gt;state remoto en GCS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B42BC;fontColor=#ffffff;strokeColor=#7B42BC;" vertex="1" parent="1">
+          <mxGeometry x="860" y="760" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Flechas de datos -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="api" target="cf1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" value="CDC" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="fs" target="cf2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" value="upload" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;dashed=1;" edge="1" parent="1" source="csv" target="gcs"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="115" y="640" /><mxPoint x="530" y="640" /><mxPoint x="530" y="205" /></Array></mxGeometry></mxCell>
+        <mxCell id="e4" value="JSON" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="cf1" target="gcs"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" value="streaming insert" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="cf2" target="b1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" value="evento" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;dashed=1;" edge="1" parent="1" source="gcs" target="cf3"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="685" y="270" /><mxPoint x="520" y="270" /><mxPoint x="520" y="515" /></Array></mxGeometry></mxCell>
+        <mxCell id="e7" value="Load Job" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="cf3" target="b2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" value="MERGE" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="b1" target="s1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" value="MERGE" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="b2" target="s2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" value="inválidos" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#d6b656;dashed=1;" edge="1" parent="1" source="b2" target="q"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="685" y="655" /></Array></mxGeometry></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="s1" target="g1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="s2" target="g2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="g1" target="v1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="g2" target="v1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#d6b656;" edge="1" parent="1" source="q" target="v2"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1150" y="655" /><mxPoint x="1150" y="195" /></Array></mxGeometry></mxCell>
+        <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="v1" target="bi"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;" edge="1" parent="1" source="v2" target="bi"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Flechas de control -->
+        <mxCell id="c1" value="OIDC" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;dashed=1;strokeColor=#9673a6;" edge="1" parent="1" source="gha" target="wif"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c2" value="apply" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;dashed=1;strokeColor=#7B42BC;" edge="1" parent="1" source="wif" target="tf"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c3" value="aprovisiona" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;dashed=1;strokeColor=#7B42BC;" edge="1" parent="1" source="tf" target="gcp"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="970" y="720" /><mxPoint x="1040" y="720" /></Array></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
